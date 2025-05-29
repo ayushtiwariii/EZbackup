@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dashboard</title>
+  <style>
+    .header {
+      display: flex;
+      justify-content: flex-end;
+      align-items: flex-end;
+      background-color: blanchedalmond;
+      padding: 10px 20px;
+    }
+
+    button {
+      margin-right: 10px;
+      padding: 8px 12px;
+      background-color: brown;
+      color: white;
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+      transition: transform 0.3s ease;
+    }
+
+    button:hover {
+      transform: scale(1.1);
+    }
+
+    main {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      min-height: 20vh;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 2px;
+    }
+
+    p {
+      font-size: 1.2rem;
+      color: #555;
+    }
+
+    form.backup-form {
+      margin-top: 30px;
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      width: 100%;
+      max-width: 500px;
+      text-align: left;
+      display: none; /* Hidden by default */
+    }
+
+    form.backup-form label {
+      display: block;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+
+    form.backup-form input,
+    form.backup-form select {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      margin-bottom: 15px;
+      border-radius: 5px;
+      border: 1px solid #aaa;
+    }
+
+    form.backup-form button {
+      width: 100%;
+      background-color: brown;
+      color: white;
+      font-weight: bold;
+    }
+
+    /* New styles for db choice buttons and container */
+    .db-choice-container {
+      margin-top: 30px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .db-choice-container button {
+      min-width: 120px;
+      font-size: 1rem;
+      padding: 12px 20px;
+      border-radius: 8px;
+      background-color: brown;
+      color: white;
+      font-weight: bold;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.3s ease, transform 0.3s ease;
+    }
+
+    .db-choice-container button:hover,
+    .db-choice-container button.active {
+      background-color: darkred;
+      transform: scale(1.05);
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <form action="/logout" method="GET">
+      <button type="submit">Logout</button>
+    </form>
+  </div>
+
+  <main>
+    <% if (user) { %>
+      <h1>Welcome, <%= user.name %>!</h1>
+      <p>Email: <%= user.email %></p>
+    <% } else { %>
+      <h1>Welcome!</h1>
+      <!-- <p>User details not available.</p> -->
+    <% } %>
+
+    <h2>Which database do you want to take backup of?</h2>
+    <div class="db-choice-container">
+      <button type="button" id="btnMySQL">MySQL</button>
+      <button type="button" id="btnMongo">MongoDB</button>
+    </div>
+
+    <form class="backup-form" id="backupForm" action="/backup/mysql" method="POST">
+      <h2>MySQL Database Backup</h2>
+
+      <label for="host">Host</label>
+      <input type="text" id="host" name="host" placeholder="localhost or IP" required />
+
+      <label for="username">Username</label>
+      <input type="text" id="username" name="username" required />
+
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" required />
+
+      <label for="dbName">Database Name</label>
+      <input type="text" id="dbName" name="dbName" required />
+
+      <button type="submit">Generate Backup</button>
+    </form>
+
+    <form class="backup-form" id="mongoBackupForm" action="/backup/mongo" method="POST">
+      <h2>MongoDB Database Backup</h2>
+
+      <label for="uri">MongoDB URI</label>
+      <input type="text" id="uri" name="uri" placeholder="mongodb+srv://user:pass@cluster0.mongodb.net" required />
+
+      <label for="dbNameMongo">Database Name</label>
+      <input type="text" id="dbNameMongo" name="dbName" required />
+
+      <button type="submit">Generate Backup</button>
+    </form>
+  </main>
+
+  <script>
+    const btnMySQL = document.getElementById('btnMySQL');
+    const btnMongo = document.getElementById('btnMongo');
+    const mysqlForm = document.getElementById('backupForm');
+    const mongoForm = document.getElementById('mongoBackupForm');
+
+    function showForm(dbType) {
+      if (dbType === 'mysql') {
+        mysqlForm.style.display = 'block';
+        mongoForm.style.display = 'none';
+
+        btnMySQL.classList.add('active');
+        btnMongo.classList.remove('active');
+      } else if (dbType === 'mongodb') {
+        mysqlForm.style.display = 'none';
+        mongoForm.style.display = 'block';
+
+        btnMySQL.classList.remove('active');
+        btnMongo.classList.add('active');
+      }
+    }
+
+    btnMySQL.addEventListener('click', () => showForm('mysql'));
+    btnMongo.addEventListener('click', () => showForm('mongodb'));
+
+    async function handleBackupSubmit(e) {
+      e.preventDefault();
+
+      const form = e.target;
+      const formData = new FormData(form);
+
+      // Convert FormData to URLSearchParams for URL-encoded POST body
+      const urlEncodedData = new URLSearchParams();
+      for (const pair of formData) {
+        urlEncodedData.append(pair[0], pair[1]);
+      }
+
+      try {
+        const response = await fetch(form.action, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+          },
+          body: urlEncodedData.toString(),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Backup failed.');
+        }
+
+        const blob = await response.blob();
+
+        const disposition = response.headers.get('Content-Disposition');
+        let fileName = 'backup';
+        if (disposition && disposition.indexOf('filename=') !== -1) {
+          fileName = disposition.split('filename=')[1].replace(/"/g, '');
+        }
+
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+
+        alert('Backup taken successfully!');
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
+    mysqlForm.addEventListener('submit', handleBackupSubmit);
+    mongoForm.addEventListener('submit', handleBackupSubmit);
+  </script>
+</body>
+</html>
