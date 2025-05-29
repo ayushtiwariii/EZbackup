@@ -1,0 +1,2 @@
+# EZbackup
+Simplifying database backups
